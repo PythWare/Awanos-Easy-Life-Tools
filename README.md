@@ -18,6 +18,10 @@ If AELT does not launch it's usually caused by Python not being installed correc
 
 Back up your game files before using AELT.
 
+# Credits
+
+Credit goes to SlowpokeVG for his javascript source on the 20070319 BIN format and Violet for her binary templates on the Shop BIN formats.
+
 # Controls
 
 The GUI is intentionally designed to be unique, it doesn't look like a standard GUI app. 
