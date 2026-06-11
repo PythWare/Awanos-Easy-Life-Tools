@@ -42,7 +42,7 @@ I may expand AELT with more editors in the future and support other Yakuza games
 
 # PAR Batch Unpack Warning
 
-The PAR batch unpacker can run up to 4 external par.exe worker processes at the same time. Large batches may cause high CPU usage, high RAM usage, and heavy disk activity. Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,962 files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
+The PAR batch unpacker can run up to 4 external par.exe worker processes at the same time. Large batches may cause high CPU usage, high RAM usage, and heavy disk activity. Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,960 files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
 
 The main purpose of batch unpacking is to make it quicker and easier for the end user, all you have to do is select the folder you want checked for PARs and the batch unpacking will output to the directory AELT is in.
 
@@ -55,6 +55,12 @@ Game size, number of container entries, compression, nested PAR depth, and SSD v
 If the progress bar appears stuck, it isn't. It may still be working through heavy nested PAR/decompression logic.
 
 For best results, unpack to a SSD.
+
+# GUI talk
+
+I may change the GUI for the editors in AELT to match my Ever Steel's GUI which is more cell based and table designed. I'll include a sample image of Ever Steel so you have an idea incase people end up preferring Ever Steel's data editing design over AELT's.
+
+<img width="1920" height="1002" alt="ra4" src="https://github.com/user-attachments/assets/e963fdc0-47e8-483b-a350-6b19811fa12b" />
 
 # Dart usage
 
