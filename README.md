@@ -46,9 +46,11 @@ I may expand AELT with more editors in the future and support other Yakuza games
 
 # PAR Batch Unpack Warning
 
-The PAR batch unpacker can run up to 4 external par.exe worker processes at the same time. Large batches may cause high CPU usage, high RAM usage, and heavy disk activity. Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,960 files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
+The PAR batch unpacker can run up to 4 external par.exe worker processes at the same time. Large batches may cause high CPU usage, high RAM usage, and heavy disk activity. Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,960 files. Pirate Yakuzas In Hawaii unpacks with over 436k files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
 
-The main purpose of batch unpacking is to make it quicker and easier for the end user, all you have to do is select the folder you want checked for PARs and the batch unpacking will output to the directory AELT is in.
+The main purpose of batch unpacking is to make it quicker and easier for the end user, all you have to do is select the folder you want checked for PARs and the batch unpacking will output to the directory AELT is in. AELT checks the selected directory and subdirectories for PARs/nested PARs.
+
+AELT is best used for PAR/nested PAR unpacking if you need a lot of PARs unpacked, so batch unpacking. If you only need a small handful of PARs unpacked then existing PAR unpackers may be better.
 
 # Performance Notes
 
