@@ -1,8 +1,8 @@
 # Awano's Easy Life Tools/AELT
 
-Awano wanted the sweet life, the easy life ya know? That's my inspiration for this toolkit which is meant to make modding supported formats easier. I HIGHLY suggest reading this readme and the Guide within Awano's Easy Life Tools.
+Awano wanted the sweet life, the easy life ya know? That's my inspiration for this software which is meant to make modding supported formats easier. I HIGHLY suggest reading this readme and the Guide within Awano's Easy Life Tools.
 
-This toolkit is written in Python and Dart (will explain further down what Dart is being used for). Scroll to the bottom to see GUI examples of the toolkit if you desire.
+The software is written in Python and Dart (will explain further down what Dart is being used for). Scroll to the bottom to see GUI examples of the software if you desire.
 
 # Requirements
 
@@ -24,7 +24,7 @@ Credit goes to SlowpokeVG for his javascript source on the 20070319 BIN format a
 
 # Controls
 
-The GUI is intentionally designed to be unique, it doesn't look like a standard GUI app. 
+The GUI is intentionally designed to be unique, it doesn't look like a standard app. 
 
 To move the app around you must use right click on the GUI (the vertical buttons or the title of the app).
 
