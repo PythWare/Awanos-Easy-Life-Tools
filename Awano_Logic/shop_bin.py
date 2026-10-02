@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,16 +34,13 @@ Y3_ITEM_FIELDS = [
     ("Description", "string", Y3_DESCRIPTION_POINTER_OFFSET),
 ]
 
-
 class ShopBinFormatError(ValueError):
     pass
-
 
 @dataclass(slots=True)
 class ShopStringEntry:
     offset: int
     value: str
-
 
 @dataclass(slots=True)
 class ShopSharedText:
@@ -52,13 +48,11 @@ class ShopSharedText:
     string_offset: int
     value: str
 
-
 @dataclass(slots=True)
 class ShopItem:
     raw: bytearray
     description_offset: int | None
     description: str
-
 
 @dataclass(slots=True)
 class ShopBinDocument:
@@ -192,11 +186,9 @@ class ShopBinDocument:
         if encoding:
             self.encoding = encoding
 
-
 def load_shop_bin(file_path, game=SHOP_GAME_Y0, encoding=AUTO_ENCODING):
     data = Path(file_path).read_bytes()
     return parse_shop_bin_bytes(data, game=game, encoding=encoding, file_path=str(file_path))
-
 
 def parse_shop_bin_bytes(data, game=SHOP_GAME_Y0, encoding=AUTO_ENCODING, file_path=None):
     if game not in SHOP_GAME_LABELS:
@@ -222,7 +214,6 @@ def parse_shop_bin_bytes(data, game=SHOP_GAME_Y0, encoding=AUTO_ENCODING, file_p
 
     return parse_y0_shop_bin_bytes(data, encoding, file_path=file_path)
 
-
 def build_shop_bin_bytes(document, encoding=None):
     selected_encoding = encoding or document.encoding
     prefix = bytearray(document.prefix)
@@ -231,7 +222,7 @@ def build_shop_bin_bytes(document, encoding=None):
         struct.pack_into(">I", prefix, 4, len(document.items))
     else:
         if len(document.items) > 0xFFFF:
-            raise ShopBinFormatError("Y0 shop BINs cannot contain more than 65535 items.")
+            raise ShopBinFormatError("Y0 shop BINs cant contain more than 65535 items.")
         struct.pack_into(">H", prefix, 6, len(document.items))
 
     rows = bytearray()
@@ -276,12 +267,10 @@ def build_shop_bin_bytes(document, encoding=None):
     patch_known_string_pointers(pre_strings, new_offsets)
     return bytes(pre_strings) + bytes(string_data)
 
-
 def format_shop_value_for_editor(value):
     if value is None:
         return ""
     return str(value)
-
 
 def parse_y0_shop_bin_bytes(data, encoding, file_path=None):
     if len(data) < 16:
@@ -321,7 +310,6 @@ def parse_y0_shop_bin_bytes(data, encoding, file_path=None):
         file_path=file_path,
     )
 
-
 def parse_y3_shop_bin_bytes(data, encoding, file_path=None):
     if len(data) < 48:
         raise ShopBinFormatError("Y3 shop BIN is too small to contain a valid header.")
@@ -358,7 +346,6 @@ def parse_y3_shop_bin_bytes(data, encoding, file_path=None):
         file_path=file_path,
     )
 
-
 def validate_table_bounds(data, start, end, label):
     if start < 16 or start > len(data):
         raise ShopBinFormatError(f"{label} pointer is outside the BIN.")
@@ -382,7 +369,6 @@ def count_y0_shared_texts(data, item_table_offset, encoding):
 
     return count
 
-
 def read_shared_texts(data, pointer_table_offset, shared_count, encoding):
     shared_texts = []
     for shared_index in range(shared_count):
@@ -398,7 +384,6 @@ def read_shared_texts(data, pointer_table_offset, shared_count, encoding):
         )
 
     return shared_texts
-
 
 def read_items(data, table_offset, item_count, record_size, description_pointer_offset, encoding):
     items = []
@@ -422,7 +407,6 @@ def read_items(data, table_offset, item_count, record_size, description_pointer_
 
     return items
 
-
 def find_string_start(shared_texts, items):
     offsets = [shared.string_offset for shared in shared_texts]
     offsets.extend(
@@ -432,7 +416,7 @@ def find_string_start(shared_texts, items):
     )
     offsets = [offset for offset in offsets if offset is not None]
     if not offsets:
-        raise ShopBinFormatError("Shop BIN did not contain any readable string pointers.")
+        raise ShopBinFormatError("Shop BIN didnt contain any readable string pointers.")
     return min(offsets)
 
 
@@ -452,7 +436,6 @@ def read_string_table(data, string_start, encoding):
         offset = end + 1
 
     return entries
-
 
 def read_c_string(data, offset, encoding):
     if offset <= 0 or offset >= len(data):
@@ -474,11 +457,10 @@ def patch_known_string_pointers(buffer, new_offsets):
         if value in new_offsets:
             struct.pack_into(">I", buffer, offset, new_offsets[value])
 
-
 def parse_unsigned_int(raw_value, max_value):
     cleaned = str(raw_value).strip()
     if not cleaned:
-        raise ShopBinFormatError("Numeric fields cannot be empty.")
+        raise ShopBinFormatError("Numeric fields cant be empty.")
 
     base = 16 if cleaned.lower().startswith("0x") else 10
     try:

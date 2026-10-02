@@ -1,7 +1,6 @@
 import io, os, queue, threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
-
 from .bin import BinFormatError, format_value_for_editor, parse_bin_bytes
 from .par_batch import PAR_MAX_WORKERS, run_par_batch_unpack
 from .shop_bin import (
@@ -11,6 +10,11 @@ from .shop_bin import (
     ShopBinFormatError,
     format_shop_value_for_editor,
     parse_shop_bin_bytes,
+)
+from .string_tbl import (
+    StringTableFormatError,
+    format_string_tbl_value_for_editor,
+    parse_string_tbl_bytes,
 )
 
 WIDTH = 900
@@ -30,13 +34,14 @@ TITLE = "Awano's Easy Life Tools"
 MAIN_BUTTONS = ["Tools", "Guide"]
 
 SUB_OPTIONS = {
-    "Tools": ["BIN Editor", "Shop BINs", "PAR Unpack"],
+    "Tools": ["BIN Editor", "Shop BINs", "String Table", "PAR Unpack"],
     "Guide": ["BIN Guide", "Usage Docs"],
 }
 
 SUB_SUB_OPTIONS = {
     "BIN Editor": ["Open", "Close"],
     "Shop BINs": ["Y0", "Y3", "Close"],
+    "String Table": ["Open", "Close"],
     "PAR Unpack": ["Batch Unpack"],
     "BIN Guide": ["Info", "Credits"],
     "Usage Docs": ["Usage", "Explanations"],
@@ -46,6 +51,8 @@ BIN_PANEL_WIDTH = 360
 BIN_PANEL_HEIGHT = 420
 SHOP_PANEL_WIDTH = 360
 SHOP_PANEL_HEIGHT = 420
+STRING_TBL_PANEL_WIDTH = 360
+STRING_TBL_PANEL_HEIGHT = 420
 PAR_PANEL_WIDTH = 360
 PAR_PANEL_HEIGHT = 360
 GUIDE_PANEL_WIDTH = 360
@@ -59,7 +66,9 @@ GUIDE_CONTENT = {
         "or .bin_k. These are table style files with entries and named parameter fields. "
         "The editor keeps the original parameter padding when saving so unchanged files "
         "can round trip cleanly.\n\n"
-        "Shop BINs opens Y0 and Y3 shop tables. Those use separate binary layouts. ",
+        "Shop BINs opens Y0 and Y3 shop tables. Those use separate binary layouts. \n\n"
+        "String Table opens string_tbl.bin. Its a list of groups, each group holding "
+        "pointers to text. Saving rebuilds every pointer so strings can grow or shrink.",
     ),
     ("BIN Guide", "Credits"): (
         "BIN Guide, Credits",
@@ -78,7 +87,9 @@ GUIDE_CONTENT = {
         "game. Close unloads the current shop BIN.\n\n"
         "Shop buttons: S applies the Value box. RA reloads all values from the original "
         "shop BIN. C saves a new shop BIN. R restores only the selected field from the "
-        "original load.",
+        "original load.\n\n"
+        "String Table opens string_tbl.bin. Pick a group on the left and a string on the "
+        "right. S, RA, C, and R work the same as in Shop BINs.",
     ),
     ("Usage Docs", "Explanations"): (
         "Usage Docs, Explanations",
@@ -88,10 +99,11 @@ GUIDE_CONTENT = {
         "The 2007 BIN editor has an E button because those tables can be expanded by "
         "duplicating an entry.\n\n"
         "Shop BIN numeric edits should keep the table compact. Description edits may grow "
-        "the file because the save path rewrites the string area and updates pointers.",
+        "the file because the save path rewrites the string area and updates pointers.\n\n"
+        "String Table strings marked (null) have no text at all. They stay null unless "
+        "you type something and press S.",
     ),
 }
-
 
 def shorten_path_smart(path):
     parts = os.fspath(path).split(os.sep)
@@ -100,7 +112,6 @@ def shorten_path_smart(path):
         return f"...{os.sep}{parts[-2]}{os.sep}{parts[-1]}"
 
     return os.fspath(path)
-
 
 class AwanoApp:
     def __init__(self):
@@ -139,6 +150,21 @@ class AwanoApp:
             "dirty": False,
             "game": SHOP_GAME_Y0,
             "status": "Open a Y0 shop BIN to start editing.",
+        }
+        self.string_tbl_state = {
+            "visible": False,
+            "x": 520,
+            "y": 40,
+            "dragging": False,
+            "path": None,
+            "last_saved_path": None,
+            "document": None,
+            "original_document": None,
+            "source_buffer": None,
+            "entry_index": 0,
+            "field_index": 0,
+            "dirty": False,
+            "status": "Open a string_tbl.bin to start editing.",
         }
         self.par_state = {
             "visible": False,
@@ -196,6 +222,7 @@ class AwanoApp:
 
         self.create_bin_widgets()
         self.create_shop_widgets()
+        self.create_string_tbl_widgets()
         self.create_par_widgets()
         self.create_guide_widgets()
         self.bind_events()
@@ -789,6 +816,281 @@ class AwanoApp:
 
         self.refresh_shop_widgets()
 
+    def create_string_tbl_widgets(self):
+        panel = tk.Frame(self.root, bg="#0f141b", highlightthickness=0)
+        header = tk.Frame(panel, bg="#1c2734", height=28)
+        header.pack(fill="x")
+
+        title_label = tk.Label(
+            header,
+            text="String Table",
+            bg="#1c2734",
+            fg="white",
+            font=("Segoe UI", 10, "bold"),
+        )
+        title_label.pack(side="left", padx=8, pady=4)
+
+        close_button = tk.Button(
+            header,
+            text="X",
+            command=self.close_string_tbl_document,
+            bg="#4a4f57",
+            fg="white",
+            relief="flat",
+            width=3,
+            font=("Segoe UI", 8, "bold"),
+            activebackground="#6b7380",
+        )
+        close_button.pack(side="right", pady=4)
+
+        for widget in (header, title_label):
+            widget.bind("<Button-1>", self.start_string_tbl_drag)
+            widget.bind("<B1-Motion>", self.do_string_tbl_drag)
+            widget.bind("<ButtonRelease-1>", self.stop_string_tbl_drag)
+
+        info_var = tk.StringVar(value="No string table loaded.")
+        status_var = tk.StringVar(value=self.string_tbl_state["status"])
+        entry_jump_var = tk.StringVar(value="")
+
+        info_label = tk.Label(
+            panel,
+            textvariable=info_var,
+            bg="#0f141b",
+            fg="white",
+            anchor="w",
+            justify="left",
+            wraplength=320,
+            font=("Segoe UI", 8, "bold"),
+        )
+        info_label.pack(fill="x", padx=8, pady=(6, 2))
+
+        status_label = tk.Label(
+            panel,
+            textvariable=status_var,
+            bg="#0f141b",
+            fg="#b8c2ce",
+            anchor="w",
+            justify="left",
+            wraplength=320,
+            font=("Segoe UI", 8),
+        )
+        status_label.pack(fill="x", padx=8, pady=(0, 6))
+
+        lists_frame = tk.Frame(panel, bg="#0f141b")
+        lists_frame.pack(fill="both", padx=8)
+
+        entry_column = tk.Frame(lists_frame, bg="#0f141b")
+        entry_column.pack(side="left", fill="both")
+
+        entry_label = tk.Label(
+            entry_column,
+            text="Groups",
+            bg="#0f141b",
+            fg="#dfe7f0",
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        )
+        entry_label.pack(fill="x", pady=(0, 2))
+
+        entry_list_frame = tk.Frame(entry_column, bg="#0f141b")
+        entry_list_frame.pack()
+
+        entry_list = tk.Listbox(
+            entry_list_frame,
+            exportselection=False,
+            width=16,
+            height=7,
+            bg="#1a212a",
+            fg="white",
+            relief="flat",
+            selectbackground=ACCENT,
+            selectforeground="black",
+            activestyle="none",
+            font=("Consolas", 9),
+        )
+        entry_list.pack(side="left")
+        entry_list.bind("<<ListboxSelect>>", self.on_string_tbl_entry_select)
+
+        entry_scrollbar = tk.Scrollbar(
+            entry_list_frame,
+            command=entry_list.yview,
+            troughcolor="#121821",
+            activebackground="#6e83a1",
+        )
+        entry_scrollbar.pack(side="left", fill="y")
+        entry_list.configure(yscrollcommand=entry_scrollbar.set)
+
+        field_column = tk.Frame(lists_frame, bg="#0f141b")
+        field_column.pack(side="left", fill="both", padx=(8, 0))
+
+        field_label = tk.Label(
+            field_column,
+            text="Strings",
+            bg="#0f141b",
+            fg="#dfe7f0",
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        )
+        field_label.pack(fill="x", pady=(0, 2))
+
+        field_list_frame = tk.Frame(field_column, bg="#0f141b")
+        field_list_frame.pack()
+
+        field_list = tk.Listbox(
+            field_list_frame,
+            exportselection=False,
+            width=22,
+            height=7,
+            bg="#1a212a",
+            fg="white",
+            relief="flat",
+            selectbackground=ACCENT,
+            selectforeground="black",
+            activestyle="none",
+            font=("Consolas", 9),
+        )
+        field_list.pack(side="left")
+        field_list.bind("<<ListboxSelect>>", self.on_string_tbl_field_select)
+
+        field_scrollbar = tk.Scrollbar(
+            field_list_frame,
+            command=field_list.yview,
+            troughcolor="#121821",
+            activebackground="#6e83a1",
+        )
+        field_scrollbar.pack(side="left", fill="y")
+        field_list.configure(yscrollcommand=field_scrollbar.set)
+
+        jump_row = tk.Frame(panel, bg="#0f141b")
+        jump_row.pack(fill="x", padx=8, pady=(8, 4))
+
+        jump_label = tk.Label(
+            jump_row,
+            text="Jump to Group",
+            bg="#0f141b",
+            fg="#e1b85e",
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        )
+        jump_label.pack(side="left")
+
+        jump_entry = tk.Entry(
+            jump_row,
+            textvariable=entry_jump_var,
+            width=8,
+            bg="#1a212a",
+            fg="white",
+            relief="flat",
+            insertbackground="white",
+            justify="center",
+            font=("Consolas", 9),
+        )
+        jump_entry.pack(side="left", padx=(8, 0))
+        jump_entry.bind("<KeyRelease>", self.on_string_tbl_entry_jump_change)
+        jump_entry.bind("<Return>", self.on_string_tbl_entry_jump_change)
+
+        value_row = tk.Frame(panel, bg="#0f141b")
+        value_row.pack(fill="x", padx=8)
+
+        editor_label = tk.Label(
+            value_row,
+            text="Value",
+            bg="#0f141b",
+            fg="#dfe7f0",
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        )
+        editor_label.pack(side="left")
+
+        refresh_value_button = tk.Button(
+            value_row,
+            text="R",
+            command=self.refresh_selected_string_tbl_value,
+            bg="#4d5c71",
+            fg="white",
+            relief="flat",
+            width=3,
+            font=("Segoe UI", 8, "bold"),
+            activebackground="#6e83a1",
+        )
+        refresh_value_button.pack(side="right")
+
+        create_file_button = tk.Button(
+            value_row,
+            text="C",
+            command=self.save_string_tbl_as,
+            bg="#4d6d4f",
+            fg="white",
+            relief="flat",
+            width=3,
+            font=("Segoe UI", 8, "bold"),
+            activebackground="#66956a",
+        )
+        create_file_button.pack(side="right", padx=(0, 4))
+
+        reload_all_button = tk.Button(
+            value_row,
+            text="RA",
+            command=self.reload_all_string_tbl_values,
+            bg="#6a4a4a",
+            fg="white",
+            relief="flat",
+            width=4,
+            font=("Segoe UI", 8, "bold"),
+            activebackground="#8f6161",
+        )
+        reload_all_button.pack(side="right", padx=(0, 4))
+
+        set_value_button = tk.Button(
+            value_row,
+            text="S",
+            command=self.apply_string_tbl_value,
+            bg=ACCENT,
+            fg="black",
+            relief="flat",
+            width=3,
+            font=("Segoe UI", 8, "bold"),
+            activebackground="#ffd663",
+        )
+        set_value_button.pack(side="right", padx=(0, 4))
+
+        editor_frame = tk.Frame(panel, bg="#0f141b")
+        editor_frame.pack(fill="x", padx=8, pady=(2, 8))
+
+        editor = tk.Text(
+            editor_frame,
+            height=8,
+            width=40,
+            wrap="word",
+            bg="#1a212a",
+            fg="white",
+            relief="flat",
+            insertbackground="white",
+            font=("Consolas", 9),
+        )
+        editor.pack(side="left", fill="x", expand=True)
+
+        editor_scrollbar = tk.Scrollbar(
+            editor_frame,
+            command=editor.yview,
+            troughcolor="#121821",
+            activebackground="#6e83a1",
+        )
+        editor_scrollbar.pack(side="left", fill="y")
+        editor.configure(yscrollcommand=editor_scrollbar.set)
+
+        self.string_tbl_widgets = {
+            "panel": panel,
+            "info_var": info_var,
+            "status_var": status_var,
+            "entry_jump_var": entry_jump_var,
+            "entry_list": entry_list,
+            "field_list": field_list,
+            "editor": editor,
+        }
+
+        self.refresh_string_tbl_widgets()
+
     def create_par_widgets(self):
         panel = tk.Frame(self.root, bg="#0f141b", highlightthickness=0)
         header = tk.Frame(panel, bg="#1c2734", height=28)
@@ -1014,6 +1316,7 @@ class AwanoApp:
         self.guide_state["visible"] = True
         self.bin_state["visible"] = False
         self.shop_state["visible"] = False
+        self.string_tbl_state["visible"] = False
         self.refresh_guide_widgets()
         self.redraw()
 
@@ -1054,7 +1357,8 @@ class AwanoApp:
     def open_bin_editor(self):
         file_path = filedialog.askopenfilename(
             filetypes=[
-                ("All BIN files", "*.bin_c *.bin_j *.bin_k"),
+                ("All BIN files", "*.bin *.bin_c *.bin_j *.bin_k"),
+                ("BIN files", "*.bin"),
                 ("BIN C files", "*.bin_c"),
                 ("BIN J files", "*.bin_j"),
                 ("BIN K files", "*.bin_k"),
@@ -1097,6 +1401,7 @@ class AwanoApp:
         self.bin_state["parameter_index"] = 0
         self.bin_state["status"] = "BIN loaded."
         self.shop_state["visible"] = False
+        self.string_tbl_state["visible"] = False
         self.guide_state["visible"] = False
 
         self.refresh_bin_widgets()
@@ -1421,7 +1726,7 @@ class AwanoApp:
         if not self.commit_current_bin_value(show_feedback=False):
             messagebox.showerror(
                 "Save Failed",
-                "The current value could not be saved into memory. Fix it before saving the BIN.",
+                "The current value couldnt be saved into memory. Fix it before saving the BIN.",
             )
             return
 
@@ -1434,7 +1739,8 @@ class AwanoApp:
         output_path = filedialog.asksaveasfilename(
             defaultextension=".bin_c",
             filetypes=[
-                ("All BIN files", "*.bin_c *.bin_j *.bin_k"),
+                ("All BIN files", "*.bin *.bin_c *.bin_j *.bin_k"),
+                ("BIN files", "*.bin"),
                 ("BIN C files", "*.bin_c"),
                 ("BIN J files", "*.bin_j"),
                 ("BIN K files", "*.bin_k")
@@ -1525,6 +1831,7 @@ class AwanoApp:
         self.shop_state["field_index"] = 0
         self.shop_state["status"] = f"{SHOP_GAME_LABELS[self.shop_state['game']]} shop BIN loaded."
         self.bin_state["visible"] = False
+        self.string_tbl_state["visible"] = False
         self.guide_state["visible"] = False
 
         self.refresh_shop_widgets()
@@ -1810,7 +2117,7 @@ class AwanoApp:
         if not self.commit_current_shop_value(show_feedback=False):
             messagebox.showerror(
                 "Save Failed",
-                "The current value could not be saved into memory. Fix it before saving the shop BIN.",
+                "The current value couldnt be saved into memory. Fix it before saving the shop BIN.",
             )
             return
 
@@ -1845,6 +2152,366 @@ class AwanoApp:
         self.shop_state["dirty"] = False
         self.shop_state["status"] = f"Created shop BIN at {shorten_path_smart(output_path)}."
         self.refresh_shop_widgets()
+
+    def open_string_tbl_editor(self):
+        file_path = filedialog.askopenfilename(
+            title="Open string table",
+            filetypes=[
+                ("String table", "string_tbl*.bin"),
+                ("BIN files", "*.bin"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not file_path:
+            return
+
+        if self.string_tbl_state["dirty"]:
+            should_open = messagebox.askyesno(
+                "Open String Table",
+                "Discard the current string table edits and open another file?",
+            )
+            if not should_open:
+                return
+
+        self.load_string_tbl_document(file_path)
+
+    def load_string_tbl_document(self, file_path):
+        try:
+            with open(file_path, "rb") as file_obj:
+                source_bytes = file_obj.read()
+
+            source_buffer = io.BytesIO(source_bytes)
+            document = parse_string_tbl_bytes(
+                source_buffer.getvalue(),
+                encoding="auto",
+                file_path=file_path,
+            )
+            original_document = parse_string_tbl_bytes(
+                source_buffer.getvalue(),
+                encoding=document.encoding,
+                file_path=file_path,
+            )
+        except (StringTableFormatError, UnicodeDecodeError, OSError) as exc:
+            messagebox.showerror("String Table Error", str(exc))
+            return False
+
+        self.string_tbl_state["document"] = document
+        self.string_tbl_state["original_document"] = original_document
+        self.string_tbl_state["source_buffer"] = source_buffer
+        self.string_tbl_state["path"] = file_path
+        self.string_tbl_state["last_saved_path"] = None
+        self.string_tbl_state["visible"] = True
+        self.string_tbl_state["dirty"] = False
+        self.string_tbl_state["entry_index"] = 0
+        self.string_tbl_state["field_index"] = 0
+        self.string_tbl_state["status"] = "String table loaded."
+        self.bin_state["visible"] = False
+        self.shop_state["visible"] = False
+        self.guide_state["visible"] = False
+
+        self.refresh_string_tbl_widgets()
+        self.redraw()
+        return True
+
+    def close_string_tbl_document(self):
+        if self.string_tbl_state["dirty"]:
+            should_close = messagebox.askyesno(
+                "Close String Table",
+                "Discard the current string table edits and close it?",
+            )
+            if not should_close:
+                return
+
+        self.string_tbl_state["document"] = None
+        self.string_tbl_state["original_document"] = None
+        self.string_tbl_state["path"] = None
+        self.string_tbl_state["last_saved_path"] = None
+        self.string_tbl_state["source_buffer"] = None
+        self.string_tbl_state["visible"] = False
+        self.string_tbl_state["dirty"] = False
+        self.string_tbl_state["entry_index"] = 0
+        self.string_tbl_state["field_index"] = 0
+        self.string_tbl_state["status"] = "Open a string_tbl.bin to start editing."
+        self.refresh_string_tbl_widgets()
+        self.redraw()
+
+    def start_string_tbl_drag(self, event):
+        self.string_tbl_state["dragging"] = True
+        self.string_tbl_state["drag_x_root"] = event.x_root
+        self.string_tbl_state["drag_y_root"] = event.y_root
+
+    def do_string_tbl_drag(self, event):
+        if not self.string_tbl_state.get("dragging"):
+            return
+
+        dx = event.x_root - self.string_tbl_state["drag_x_root"]
+        dy = event.y_root - self.string_tbl_state["drag_y_root"]
+
+        self.string_tbl_state["x"] += dx
+        self.string_tbl_state["y"] += dy
+        self.string_tbl_state["drag_x_root"] = event.x_root
+        self.string_tbl_state["drag_y_root"] = event.y_root
+
+        self.redraw()
+
+    def stop_string_tbl_drag(self, event=None):
+        self.string_tbl_state["dragging"] = False
+
+    def on_string_tbl_entry_select(self, event=None):
+        selection = self.string_tbl_widgets["entry_list"].curselection()
+        if not selection:
+            return
+
+        self.select_string_tbl_entry(selection[0])
+
+    def on_string_tbl_field_select(self, event=None):
+        selection = self.string_tbl_widgets["field_list"].curselection()
+        if not selection:
+            return
+
+        self.string_tbl_state["field_index"] = selection[0]
+        self.load_selected_string_tbl_value()
+
+    def refresh_string_tbl_widgets(self):
+        document = self.string_tbl_state["document"]
+        entry_list = self.string_tbl_widgets["entry_list"]
+
+        entry_list.delete(0, "end")
+        self.string_tbl_widgets["field_list"].delete(0, "end")
+
+        if document is None:
+            self.string_tbl_widgets["info_var"].set("No string table loaded.")
+            self.string_tbl_widgets["status_var"].set(self.string_tbl_state["status"])
+            self.string_tbl_widgets["entry_jump_var"].set("")
+            self.string_tbl_widgets["editor"].delete("1.0", "end")
+            return
+
+        for entry_index in range(document.entry_count):
+            entry_list.insert("end", document.entry_label(entry_index))
+
+        self.string_tbl_state["entry_index"] = min(
+            self.string_tbl_state["entry_index"],
+            max(document.entry_count - 1, 0),
+        )
+
+        if document.entry_count:
+            entry_list.selection_set(self.string_tbl_state["entry_index"])
+            entry_list.activate(self.string_tbl_state["entry_index"])
+            entry_list.see(self.string_tbl_state["entry_index"])
+            self.populate_string_tbl_fields()
+
+        dirty_marker = " *" if self.string_tbl_state["dirty"] else ""
+        file_path = self.string_tbl_state["path"] or document.file_path or "string_tbl.bin"
+        self.string_tbl_widgets["info_var"].set(
+            f"{os.path.basename(file_path)}{dirty_marker}\n"
+            f"{document.entry_count} groups | {document.string_count} strings | "
+            f"{document.encoding.upper()} | {shorten_path_smart(file_path)}"
+        )
+        self.string_tbl_widgets["status_var"].set(self.string_tbl_state["status"])
+        self.load_selected_string_tbl_value()
+
+    def populate_string_tbl_fields(self):
+        document = self.string_tbl_state["document"]
+        field_list = self.string_tbl_widgets["field_list"]
+        field_list.delete(0, "end")
+
+        if document is None or document.entry_count <= 0:
+            return
+
+        field_labels = document.field_labels_for_entry(self.string_tbl_state["entry_index"])
+        for field_label in field_labels:
+            field_list.insert("end", field_label)
+
+        self.string_tbl_state["field_index"] = min(
+            self.string_tbl_state["field_index"],
+            max(len(field_labels) - 1, 0),
+        )
+
+        if field_labels:
+            field_list.selection_set(self.string_tbl_state["field_index"])
+            field_list.activate(self.string_tbl_state["field_index"])
+            field_list.see(self.string_tbl_state["field_index"])
+
+    def select_string_tbl_entry(self, entry_index, update_jump_var=True):
+        document = self.string_tbl_state["document"]
+        if document is None or document.entry_count <= 0:
+            return
+
+        entry_index = max(0, min(entry_index, document.entry_count - 1))
+        self.string_tbl_state["entry_index"] = entry_index
+        self.string_tbl_state["field_index"] = 0
+
+        entry_list = self.string_tbl_widgets["entry_list"]
+        entry_list.selection_clear(0, "end")
+        entry_list.selection_set(entry_index)
+        entry_list.activate(entry_index)
+        entry_list.see(entry_index)
+
+        if update_jump_var:
+            self.string_tbl_widgets["entry_jump_var"].set(f"{entry_index:04d}")
+
+        self.populate_string_tbl_fields()
+        self.load_selected_string_tbl_value()
+
+    def on_string_tbl_entry_jump_change(self, event=None):
+        document = self.string_tbl_state["document"]
+        if document is None or document.entry_count <= 0:
+            return
+
+        raw_value = self.string_tbl_widgets["entry_jump_var"].get().strip()
+        if not raw_value or not raw_value.isdigit():
+            return
+
+        target_index = int(raw_value)
+        if 0 <= target_index < document.entry_count:
+            self.select_string_tbl_entry(target_index, update_jump_var=False)
+
+    def get_selected_string_tbl_location(self):
+        document = self.string_tbl_state["document"]
+        if document is None or document.entry_count <= 0:
+            return None
+
+        entry_index = self.string_tbl_state["entry_index"]
+        string_count = len(document.groups[entry_index])
+        if string_count <= 0:
+            return None
+
+        self.string_tbl_state["field_index"] = min(
+            self.string_tbl_state["field_index"],
+            string_count - 1,
+        )
+        return entry_index, self.string_tbl_state["field_index"]
+
+    def load_selected_string_tbl_value(self):
+        document = self.string_tbl_state["document"]
+        location = self.get_selected_string_tbl_location()
+        editor = self.string_tbl_widgets["editor"]
+        editor.delete("1.0", "end")
+        if document is None or location is None:
+            return
+
+        editor.insert("1.0", format_string_tbl_value_for_editor(document.get_value(*location)))
+
+    def apply_string_tbl_value(self):
+        self.commit_current_string_tbl_value()
+
+    def commit_current_string_tbl_value(self, show_feedback=True):
+        document = self.string_tbl_state["document"]
+        location = self.get_selected_string_tbl_location()
+        if document is None or location is None:
+            return False
+
+        raw_value = self.string_tbl_widgets["editor"].get("1.0", "end-1c")
+        if raw_value == format_string_tbl_value_for_editor(document.get_value(*location)):
+            return True
+
+        try:
+            raw_value.encode(document.encoding)
+        except UnicodeEncodeError as exc:
+            if show_feedback:
+                messagebox.showerror("String Table Error", str(exc))
+            return False
+
+        document.set_value(*location, raw_value)
+        self.string_tbl_state["dirty"] = True
+        if show_feedback:
+            self.string_tbl_state["status"] = (
+                f"Updated group {location[0]:04d} string {location[1]:03d}."
+            )
+        self.refresh_string_tbl_widgets()
+        return True
+
+    def refresh_selected_string_tbl_value(self):
+        document = self.string_tbl_state["document"]
+        original_document = self.string_tbl_state["original_document"]
+        location = self.get_selected_string_tbl_location()
+        if document is None or original_document is None or location is None:
+            return
+
+        document.set_value(*location, original_document.get_value(*location))
+        self.string_tbl_state["dirty"] = True
+        self.string_tbl_state["status"] = (
+            f"Restored group {location[0]:04d} string {location[1]:03d} from the original file."
+        )
+        self.refresh_string_tbl_widgets()
+
+    def reload_all_string_tbl_values(self):
+        source_buffer = self.string_tbl_state["source_buffer"]
+        original_document = self.string_tbl_state["original_document"]
+        if source_buffer is None or original_document is None:
+            return
+
+        if self.string_tbl_state["dirty"]:
+            should_reload = messagebox.askyesno(
+                "Reload String Table",
+                "Discard all current string table edits and reload the original values?",
+            )
+            if not should_reload:
+                return
+
+        try:
+            reloaded_document = parse_string_tbl_bytes(
+                source_buffer.getvalue(),
+                encoding=original_document.encoding,
+                file_path=self.string_tbl_state["path"],
+            )
+        except (StringTableFormatError, UnicodeDecodeError) as exc:
+            messagebox.showerror("Reload Failed", str(exc))
+            return
+
+        self.string_tbl_state["document"] = reloaded_document
+        self.string_tbl_state["dirty"] = False
+        self.string_tbl_state["status"] = "Reloaded the in-memory string table from the original file."
+        self.refresh_string_tbl_widgets()
+
+    def save_string_tbl_as(self):
+        document = self.string_tbl_state["document"]
+        if document is None:
+            return
+
+        if not self.commit_current_string_tbl_value(show_feedback=False):
+            messagebox.showerror(
+                "Save Failed",
+                "The current value couldnt be saved into memory. Fix it before saving the string table.",
+            )
+            return
+
+        default_name = os.path.basename(
+            self.string_tbl_state["last_saved_path"]
+            or self.string_tbl_state["path"]
+            or document.file_path
+            or "string_tbl.bin"
+        )
+        output_path = filedialog.asksaveasfilename(
+            defaultextension=".bin",
+            filetypes=[
+                ("String table", "string_tbl*.bin"),
+                ("BIN files", "*.bin"),
+                ("All files", "*.*"),
+            ],
+            initialfile=default_name,
+        )
+
+        if not output_path:
+            return
+
+        original_size = len(self.string_tbl_state["source_buffer"].getvalue())
+        try:
+            output_bytes = document.to_bytes(encoding=document.encoding)
+            with open(output_path, "wb") as file_obj:
+                file_obj.write(output_bytes)
+        except (StringTableFormatError, OSError, UnicodeEncodeError) as exc:
+            messagebox.showerror("Save Failed", str(exc))
+            return
+
+        size_change = len(output_bytes) - original_size
+        self.string_tbl_state["last_saved_path"] = output_path
+        self.string_tbl_state["dirty"] = False
+        self.string_tbl_state["status"] = (
+            f"Created string table at {shorten_path_smart(output_path)} "
+            f"({len(output_bytes)} bytes, {size_change:+d} vs original)."
+        )
+        self.refresh_string_tbl_widgets()
 
     def start_par_drag(self, event):
         self.par_state["dragging"] = True
@@ -1887,8 +2554,8 @@ class AwanoApp:
 
         self.par_state["root_path"] = folder_path
         self.par_state["output_root"] = None
-        self.par_state["status"] = "Scanning for PAR archives..."
-        self.par_state["summary"] = "Preparing batch controller..."
+        self.par_state["status"] = "Scanning for PAR archives"
+        self.par_state["summary"] = "Preparing batch controller"
         self.par_state["progress"] = 0.0
         self.par_state["running"] = True
         self.par_state["cancel_requested"] = False
@@ -1921,7 +2588,7 @@ class AwanoApp:
 
         cancel_event.set()
         self.par_state["cancel_requested"] = True
-        self.par_state["status"] = "Cancelling PAR batch..."
+        self.par_state["status"] = "Cancelling PAR batch"
         self.append_par_log("Cancellation requested. Waiting for active workers to stop.")
         self.refresh_par_widgets()
 
@@ -1999,8 +2666,22 @@ class AwanoApp:
         self.refresh_par_widgets()
         self.redraw()
 
-        if thread is not None and thread.is_alive():
+        if self.par_state["update_queue"] is None:
+            return
+
+        if (thread is not None and thread.is_alive()) or not update_queue.empty():
             self.root.after(100, self.poll_par_updates)
+            return
+
+        self.par_state["running"] = False
+        self.par_state["cancel_requested"] = False
+        self.par_state["status"] = "PAR batch stopped without reporting completion."
+        self.append_par_log(self.par_state["status"])
+        self.par_state["thread"] = None
+        self.par_state["update_queue"] = None
+        self.par_state["cancel_event"] = None
+        self.refresh_par_widgets()
+        self.redraw()
 
     def append_par_log(self, message):
         if not message:
@@ -2144,6 +2825,37 @@ class AwanoApp:
             window=self.shop_widgets["panel"],
             width=SHOP_PANEL_WIDTH - 12,
             height=SHOP_PANEL_HEIGHT - 12,
+        )
+
+    def draw_string_tbl_editor(self):
+        if not self.string_tbl_state["visible"]:
+            return
+
+        base_x = self.string_tbl_state["x"]
+        base_y = self.string_tbl_state["y"]
+
+        self.canvas.create_rectangle(
+            base_x,
+            base_y,
+            base_x + STRING_TBL_PANEL_WIDTH,
+            base_y + STRING_TBL_PANEL_HEIGHT,
+            fill="#202833",
+            outline="",
+        )
+        self.canvas.create_rectangle(
+            base_x + 3,
+            base_y + 3,
+            base_x + STRING_TBL_PANEL_WIDTH - 3,
+            base_y + STRING_TBL_PANEL_HEIGHT - 3,
+            outline="#3a4656",
+        )
+        self.canvas.create_window(
+            base_x + 6,
+            base_y + 6,
+            anchor="nw",
+            window=self.string_tbl_widgets["panel"],
+            width=STRING_TBL_PANEL_WIDTH - 12,
+            height=STRING_TBL_PANEL_HEIGHT - 12,
         )
 
     def draw_guide_panel(self):
@@ -2305,6 +3017,7 @@ class AwanoApp:
 
                 self.bin_state["visible"] = False
                 self.shop_state["visible"] = False
+                self.string_tbl_state["visible"] = False
                 self.guide_state["visible"] = False
                 self.redraw()
                 return
@@ -2318,6 +3031,7 @@ class AwanoApp:
 
                 self.bin_state["visible"] = False
                 self.shop_state["visible"] = False
+                self.string_tbl_state["visible"] = False
                 self.guide_state["visible"] = False
                 self.redraw()
                 return
@@ -2350,6 +3064,14 @@ class AwanoApp:
 
                 if self.ui_state["sub"] == "Shop BINs" and name == "Close":
                     self.close_shop_document()
+                    return
+
+                if self.ui_state["sub"] == "String Table" and name == "Open":
+                    self.open_string_tbl_editor()
+                    return
+
+                if self.ui_state["sub"] == "String Table" and name == "Close":
+                    self.close_string_tbl_document()
                     return
 
                 return
@@ -2392,8 +3114,8 @@ class AwanoApp:
         self.draw_par_panel()
         self.draw_bin_editor()
         self.draw_shop_editor()
+        self.draw_string_tbl_editor()
         self.draw_guide_panel()
-
 
 def run_app():
     app = AwanoApp()

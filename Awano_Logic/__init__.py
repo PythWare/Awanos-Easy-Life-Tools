@@ -3,5 +3,4 @@ def run_app():
 
     gui_run_app()
 
-
 __all__ = ["run_app"]

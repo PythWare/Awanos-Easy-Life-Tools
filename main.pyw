@@ -12,7 +12,6 @@ def configure_launch_directory():
 
     return app_dir
 
-
 def main():
     freeze_support()
     configure_launch_directory()
@@ -20,7 +19,6 @@ def main():
     from Awano_Logic import run_app
 
     run_app()
-
 
 if __name__ == "__main__":
     main()

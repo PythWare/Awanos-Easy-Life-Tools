@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,10 +50,8 @@ HEX_PARAMETER_TYPES = {
 INT_PARAMETER_TYPES = {"special_value", "itemid", "USE_COUNTER"}
 UNSUPPORTED_PARAMETER_TYPES = {"comment", "unknown"}
 
-
 class BinFormatError(ValueError):
     pass
-
 
 @dataclass(slots=True)
 class BinParameter:
@@ -70,7 +67,6 @@ class BinParameter:
             return PARAMETER_TYPES[self.type_index]
         except IndexError as exc:
             raise BinFormatError(f"Unknown parameter type index {self.type_index}") from exc
-
 
 @dataclass(slots=True)
 class BinDocument:
@@ -134,11 +130,9 @@ class BinDocument:
         if encoding:
             self.encoding = encoding
 
-
 def load_bin(file_path, encoding=AUTO_ENCODING):
     data = Path(file_path).read_bytes()
     return parse_bin_bytes(data, encoding=encoding, file_path=str(file_path))
-
 
 def parse_bin_bytes(data, encoding=AUTO_ENCODING, file_path=None):
     if encoding == AUTO_ENCODING:
@@ -153,7 +147,6 @@ def parse_bin_bytes(data, encoding=AUTO_ENCODING, file_path=None):
             raise BinFormatError("Failed to decode BIN with UTF-8, CP932, or Shift-JIS.") from last_error
 
     return parse_bin_bytes_with_encoding(data, encoding, file_path=file_path)
-
 
 def build_bin_bytes(document, encoding=None):
     selected_encoding = encoding or document.encoding
@@ -186,7 +179,6 @@ def build_bin_bytes(document, encoding=None):
 
     return bytes(header) + b"".join(body_chunks)
 
-
 def format_value_for_editor(parameter_type, value):
     if value is None:
         return ""
@@ -195,7 +187,6 @@ def format_value_for_editor(parameter_type, value):
         return str(value)
 
     return str(value)
-
 
 def normalize_parameter_value(parameter_type, value):
     raw_text = value if isinstance(value, str) else str(value)
@@ -224,7 +215,6 @@ def normalize_parameter_value(parameter_type, value):
         return raw_text
 
     raise BinFormatError(f"Unsupported parameter type '{parameter_type}'.")
-
 
 def parse_bin_bytes_with_encoding(data, encoding, file_path=None):
     if len(data) < HEADER_BASE_SIZE:
@@ -283,7 +273,6 @@ def parse_bin_bytes_with_encoding(data, encoding, file_path=None):
         encoding=encoding,
         file_path=file_path,
     )
-
 
 def decode_parameter_block(entries, parameter, parameter_buffer, entry_amount, encoding):
     parameter_name = parameter.name
@@ -368,7 +357,6 @@ def decode_parameter_block(entries, parameter, parameter_buffer, entry_amount, e
         return
 
     raise BinFormatError(f"Unknown parameter type '{parameter_type}'.")
-
 
 def encode_parameter_block(document, parameter, encoding):
     parameter_name = parameter.name
@@ -490,7 +478,6 @@ def encode_parameter_block(document, parameter, encoding):
 
     raise BinFormatError(f"Unknown parameter type '{parameter_type}'.")
 
-
 def detect_parameter_tail_padding(parameter, parameter_buffer, entry_amount, encoding):
     parameter_type = parameter.type_name
 
@@ -527,7 +514,6 @@ def detect_parameter_tail_padding(parameter, parameter_buffer, entry_amount, enc
 
     return b"\x00\x00"
 
-
 def read_counted_strings(buffer, count, encoding):
     values = []
     position = 0
@@ -541,11 +527,9 @@ def read_counted_strings(buffer, count, encoding):
 
     return values, position
 
-
 def split_hex_chunks(buffer):
     hex_string = buffer.hex().upper()
     return [hex_string[index : index + 8] for index in range(0, len(hex_string), 8) if hex_string[index : index + 8]]
-
 
 def decode_status_values(buffer):
     values = []
@@ -568,7 +552,6 @@ def decode_status_values(buffer):
 
     return values
 
-
 def normalize_value_for_write(parameter_type, value, parameter_name, entry_index):
     try:
         return normalize_parameter_value(parameter_type, value)
@@ -577,7 +560,6 @@ def normalize_value_for_write(parameter_type, value, parameter_name, entry_index
             f"{parameter_name} entry {entry_index:03d}: {exc}"
         ) from exc
 
-
 def clean_hex_input(raw_text):
     cleaned = raw_text.strip().replace(" ", "").replace("\n", "").replace("\r", "")
 
@@ -585,7 +567,6 @@ def clean_hex_input(raw_text):
         cleaned = cleaned[2:]
 
     return cleaned
-
 
 def normalize_fixed_hex32(raw_text, allow_empty=False):
     cleaned = clean_hex_input(raw_text)
@@ -604,7 +585,6 @@ def normalize_fixed_hex32(raw_text, allow_empty=False):
         raise BinFormatError("Hex values must fit in 4 bytes (up to 8 hex characters).")
 
     return cleaned.upper().zfill(8)
-
 
 def normalize_status_text(raw_text):
     stripped = raw_text.strip()
@@ -633,7 +613,6 @@ def normalize_status_text(raw_text):
         )
 
     return cleaned.upper()
-
 
 def parse_int_text(raw_text):
     base = 16 if raw_text.lower().startswith("0x") else 10

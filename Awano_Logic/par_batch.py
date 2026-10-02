@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import json, os, shutil, subprocess, time
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
@@ -7,7 +6,6 @@ from pathlib import Path
 
 PAR_MAX_WORKERS = 4
 PAR_EXTENSIONS = {".par"}
-
 
 def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_MAX_WORKERS):
     root_path = Path(root_dir)
@@ -61,7 +59,7 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
         {
             "type": "log",
             "message": (
-                f"Found {top_level_jobs} top-level PAR archive(s) under "
+                f"Found {top_level_jobs} top-level PAR archives under "
                 f"{os.fspath(root_path)}. Output root: {os.fspath(output_root)}. "
                 "Nested PARs will be queued as they are discovered."
             ),
@@ -70,7 +68,7 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
     update_queue.put(
         {
             "type": "state",
-            "status": "Scanning complete. Starting PAR workers...",
+            "status": "Scanning complete. Starting PAR workers",
             "progress": display_progress,
             "output_root": os.fspath(output_root),
             "top_level_jobs": top_level_jobs,
@@ -110,7 +108,7 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
                 update_queue.put(
                     {
                         "type": "state",
-                        "status": f"Running {len(active_jobs)} PAR worker(s)...",
+                        "status": f"Running {len(active_jobs)} PAR workers",
                         "progress": display_progress,
                         "output_root": os.fspath(output_root),
                         "top_level_jobs": top_level_jobs,
@@ -160,8 +158,8 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
                             "type": "log",
                             "message": (
                                 f"Finished {os.fspath(source_path)} -> {os.fspath(output_dir)} | "
-                                f"{extracted_files} file(s), {decompressed_files} decompressed, "
-                                f"{len(nested_paths)} nested PAR(s)."
+                                f"{extracted_files} files, {decompressed_files} decompressed, "
+                                f"{len(nested_paths)} nested PARs."
                             ),
                         }
                     )
@@ -198,7 +196,7 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
                             {
                                 "type": "log",
                                 "message": (
-                                    f"Queued {queued_nested} nested PAR(s) from "
+                                    f"Queued {queued_nested} nested PARs from "
                                     f"{os.fspath(source_path)}.{sample_suffix}"
                                 ),
                             }
@@ -212,7 +210,7 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
                     {
                         "type": "state",
                         "status": (
-                            "Processing nested PAR archives..."
+                            "Processing nested PAR archives"
                             if pending_jobs or active_jobs
                             else "PAR batch unpack completed."
                         ),
@@ -250,7 +248,6 @@ def run_par_batch_unpack(root_dir, update_queue, cancel_event, worker_count=PAR_
 
     update_queue.put({"type": "finished"})
 
-
 def resolve_par_worker_command():
     module_dir = Path(__file__).resolve().parent
     exe_path = module_dir / "par.exe"
@@ -272,14 +269,13 @@ def resolve_par_worker_command():
         return [os.fspath(exe_path)]
 
     raise FileNotFoundError(
-        "Could not find a PAR worker. Expected Awano_Logic/par.exe or a usable Dart runtime for Awano_Logic/par.dart."
+        "Couldnt find a PAR worker. Expected Awano_Logic/par.exe or a usable Dart runtime for Awano_Logic/par.dart."
     )
-
 
 def scan_par_archives(root_dir):
     root_path = Path(root_dir)
     if not root_path.exists():
-        raise FileNotFoundError(f"Folder does not exist: {os.fspath(root_path)}")
+        raise FileNotFoundError(f"Folder doesnt exist: {os.fspath(root_path)}")
 
     return sorted(
         path
@@ -289,11 +285,9 @@ def scan_par_archives(root_dir):
         and not any(part.endswith("_unpack") for part in path.parts)
     )
 
-
 def default_output_dir(source_path):
     source = Path(source_path)
     return source.with_name(sanitize_output_name(source))
-
 
 def build_top_level_output_dir(source_path, source_root, output_root):
     source = Path(source_path)
@@ -302,13 +296,11 @@ def build_top_level_output_dir(source_path, source_root, output_root):
     relative_parent = source.parent.relative_to(source_root_path)
     return output_root_path / relative_parent / sanitize_output_name(source)
 
-
 def resolve_batch_output_root(root_dir):
     root_path = Path(root_dir)
     workspace_root = Path(__file__).resolve().parent.parent
     par_unpack_root = workspace_root / "PAR_Unpacker"
     return par_unpack_root / f"{root_path.name}_awano_unpack"
-
 
 def run_par_worker_job(worker_command, source_path, output_dir, cancel_event):
     source = Path(source_path)
@@ -359,10 +351,8 @@ def run_par_worker_job(worker_command, source_path, output_dir, cancel_event):
                 f"PAR worker returned invalid metadata for {os.fspath(source)}."
             ) from exc
 
-
 def normalize_path_key(path):
     return os.path.normcase(os.path.abspath(os.fspath(path)))
-
 
 def collect_nested_sources(worker_nested_paths, output_dir):
     discovered_paths = []
@@ -384,7 +374,6 @@ def collect_nested_sources(worker_nested_paths, output_dir):
 
     return discovered_paths
 
-
 def resolve_worker_nested_paths(worker_nested_paths, output_dir):
     output_root = Path(output_dir)
 
@@ -393,7 +382,6 @@ def resolve_worker_nested_paths(worker_nested_paths, output_dir):
         if not nested_path.is_absolute():
             nested_path = output_root / nested_path
         yield nested_path
-
 
 def discover_nested_archives(output_dir):
     output_root = Path(output_dir)
@@ -407,21 +395,18 @@ def discover_nested_archives(output_dir):
         and path.suffix.lower() in PAR_EXTENSIONS
     )
 
-
 def sanitize_output_name(path):
     source = Path(path)
-    candidate = source.stem if source.suffix.lower() == ".par" else source.name
+    candidate = source.stem if source.suffix.lower() == ".par" else f"{source.name}_unpack"
     safe = "".join(character if character not in '<>:"/\\|?*' else "_" for character in candidate)
     safe = safe.rstrip(". ").strip()
     return safe or f"{source.name}_unpack"
-
 
 def subprocess_window_options():
     if os.name != "nt":
         return {}
 
     return {"creationflags": subprocess.CREATE_NO_WINDOW}
-
 
 def summarize_worker_failure(source_path, stdout_text, stderr_text):
     detail = stderr_text.strip() or stdout_text.strip() or "Unknown worker error."
