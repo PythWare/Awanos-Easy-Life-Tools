@@ -40,7 +40,7 @@ T is where the modding software live while G is the Guide section for AELT, all 
 
 # Current features
 
-AELT supports Yakuza 0 20070319 BIN editing (.bin_c, .bin_k, .bin_j), Yakuza 0/Yakuza 3 Shop BIN editing, and high speed PAR batch unpacking with nested PAR support. PAR archives can be unpacked in parallel using up to 4 worker processes.
+AELT supports Yakuza 0 20070319 BIN editing (.bin_c, .bin_k, .bin_j), Yakuza 0/Yakuza 3 Shop BIN editing, String Table modding (tested on Yakuza 5's string_tbl.bin, haven't yet tested on other yakuza games), and high speed PAR batch unpacking with nested PAR support. PAR archives can be unpacked in parallel using up to 4 worker processes.
 
 I may expand AELT with more editors in the future and support other Yakuza games since it's designed with expanding the toolkit in mind.
 
