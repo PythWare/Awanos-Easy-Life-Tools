@@ -62,20 +62,16 @@ If the progress bar appears stuck, it isn't. It may still be working through hea
 
 For best results, unpack to a SSD.
 
-# GUI talk
-
-I may change the GUI for the editors in AELT to match my Ever Steel's GUI which is more cell based and table designed. I'll include a sample image of Ever Steel so you have an idea incase people end up preferring Ever Steel's data editing design over AELT's.
-
-<img width="1920" height="1002" alt="ra4" src="https://github.com/user-attachments/assets/e963fdc0-47e8-483b-a350-6b19811fa12b" />
-
 # Dart usage
 
 I wanted to test some ideas I had with having Dart mixed in with my Python code (Dart outperforms Python in some areas after all). As explained earlier you don't need Dart installed to run AELT, the released version includes the compiled dart source so that you only need Python 3 installed. Dart in this toolkit is predominantly used for the unpacking.
 
 # GUI examples of AELT
 
-<img width="1097" height="467" alt="ra1" src="https://github.com/user-attachments/assets/bb65701c-c840-4bd5-af60-67a828cd553d" />
+<img width="1614" height="823" alt="a2" src="https://github.com/user-attachments/assets/855c7c6e-9ff0-4b7f-9bbd-99b048119dc9" />
 
-<img width="1090" height="563" alt="ra2" src="https://github.com/user-attachments/assets/a7ab61d1-5661-46aa-a312-ddd45a78ad89" />
+<img width="1561" height="774" alt="A3" src="https://github.com/user-attachments/assets/e506c0c3-3368-45f2-abcb-5a6e9ba45651" />
 
-<img width="965" height="491" alt="ra3" src="https://github.com/user-attachments/assets/61cd9d1c-a051-42c0-846d-06b2ad8ccab7" />
+<img width="1569" height="780" alt="a4" src="https://github.com/user-attachments/assets/900c36a8-576c-470f-98c0-6ea1c33bb71e" />
+
+<img width="1617" height="755" alt="a5" src="https://github.com/user-attachments/assets/eba25ccf-ba66-472d-b4eb-53b2ec861519" />
