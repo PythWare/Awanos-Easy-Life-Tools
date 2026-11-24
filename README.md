@@ -8,6 +8,8 @@ Awano wanted the sweet life, the easy life ya know? That's my inspiration for th
 
 The software is written in Dart. Earlier versions of AELT were written in a mix of Python/Dart but versions 1.6 onward are pure Dart, which means there are no dependencies if you use AELT 1.6 onward since the dart code is compiled. Scroll to the bottom to see GUI examples of the software if you desire.
 
+the awano_logic folder just holds the source files of AELT, you don't need dart or those files to use AELT. They're just present as proof the executable is safe. Use the executable
+
 # Requirements
 
 Windows but if you're a linuxian, you can probably get AELT to run with wine. I'm not using flutter for the GUI of AELT.
