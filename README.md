@@ -42,13 +42,13 @@ T is where the modding software live while G is the Guide section for AELT, all 
 
 # Current features
 
-AELT supports Yakuza 0 20070319 BIN editing (.bin_c, .bin_k, .bin_j), Yakuza 0/Yakuza 3 Shop BIN editing, String Table modding (tested on Yakuza 5's string_tbl.bin, haven't yet tested on other yakuza games), and high speed PAR batch unpacking with nested PAR support. PAR archives can be unpacked in parallel using up to 4 worker processes.
+AELT supports Yakuza 0 20070319 BIN editing (.bin_c, .bin_k, .bin_j), Yakuza 0/Yakuza 3 Shop BIN editing, String Table modding (tested on Yakuza 5's string_tbl.bin, haven't yet tested on other yakuza games), and high speed PAR batch unpacking with nested PAR support. PAR archives can be unpacked in parallel using up to 4 workers.
 
 I may expand AELT with more editors in the future and support other Yakuza games since it's designed with expanding the software in mind.
 
 # PAR Batch Unpacking
 
-Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,960 files. Pirate Yakuzas In Hawaii unpacks with over 436k files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
+Extracted files, decompressed files, and nested PAR archives may require more disk space than the original selected folder. For example, Yakuza 0 (legacy pc version) with a full unpack extracts/decompresses with 290,729 files. Pirate Yakuzas In Hawaii unpacks with over 436k files. Close the game before unpacking, select only the folder you intend to unpack, make sure you have enough free disk space, and avoid running other heavy programs during large batch jobs.
 
 The main purpose of batch unpacking is to make it quicker and easier for the end user, all you have to do is select the folder you want checked for PARs and the batch unpacking will output to the directory AELT is in. AELT checks the selected directory and subdirectories for PARs/nested PARs.
 
@@ -56,13 +56,13 @@ AELT is best used for PAR/nested PAR unpacking if you need a lot of PARs unpacke
 
 # Performance Notes
 
-Some games unpack very large numbers of files, that is normal. Unpacking can take several minutes or longer depending on:
+Some games unpack very large numbers of files, that is normal. Unpacking can take several minutes or longer or perhaps less depending on:
 
 Game size, number of container entries, compression, nested PAR depth, whether you have the unpacking done in a folder that windows defender/your antivirus has excluded (I highly suggest setting an exclusion for whatever folder you unpack games to because defender/antivirus software throttle the unpacking speed), and SSD vs HDD.
 
 If the progress bar appears stuck, it isn't. It may still be working through heavy nested PAR/decompression logic.
 
-For best results, unpack to a SSD. Ultimately AELT's unpacking speed scales with your hardware, so if you have a good or decent PC the unpacking is ultra fast (I can fully unpack  but if your pc is weak or you chose to unpack to a HDD, expect a little longer.
+For best results, unpack to a SSD. Ultimately AELT's unpacking speed scales with your hardware, so if you have a good or decent PC the unpacking is ultra fast (I can fully unpack Yakuza 0's 290,729 files that are stored in PARs in 79.8 seconds, that's fast) but if your pc is weak or you chose to unpack to a HDD, expect a little longer.
 
 
 # some GUI examples of AELT
