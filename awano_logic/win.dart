@@ -128,8 +128,16 @@ final class NMHDR extends Struct {
   external int code;
 }
 
+@Packed(4)
 final class MSGFILTER extends Struct {
-  external NMHDR nmhdr;
+  @IntPtr()
+  external int hwndFrom;
+  @IntPtr()
+  external int idFrom;
+  @Uint32()
+  external int code;
+  @Uint32()
+  external int headerPadding;
   @Uint32()
   external int msg;
   @IntPtr()
